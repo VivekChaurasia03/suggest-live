@@ -21,7 +21,10 @@ export async function transcribeAudio(
     model: 'whisper-large-v3',
     response_format: 'verbose_json',
     timestamp_granularities: ['segment'],
-  });
+  }) as unknown as {
+    text: string;
+    segments?: Array<{ text: string; start: number; end: number }>;
+  };
 
   return {
     text: response.text,
