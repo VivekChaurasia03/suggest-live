@@ -70,7 +70,6 @@ export async function streamChatResponse(
     stream: true,
     temperature: 0.7,
     max_tokens: 2048,
-    // @ts-expect-error reasoning_effort is supported by openai/gpt-oss-120b on Groq
     reasoning_effort: 'low',
   });
 
@@ -98,7 +97,6 @@ export async function fetchSuggestions(
     response_format: { type: 'json_object' },
     temperature: 0.7,
     max_tokens: 4096,
-    // @ts-expect-error reasoning_effort is supported by openai/gpt-oss-120b on Groq
     reasoning_effort: 'low',
   });
 
