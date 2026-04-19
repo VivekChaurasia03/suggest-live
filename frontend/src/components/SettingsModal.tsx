@@ -58,10 +58,10 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="flex justify-end gap-3 pt-1">
-          <button onClick={onClose} className="px-4 py-1.5 text-xs text-gray-400 hover:text-gray-200 border border-gray-700 rounded transition-colors">
+          <button onClick={onClose} className="px-4 py-1.5 text-xs text-gray-400 hover:text-gray-200 border border-gray-700 rounded transition-colors cursor-pointer">
             Cancel
           </button>
-          <button onClick={save} className="px-4 py-1.5 text-xs bg-blue-700 hover:bg-blue-600 text-white rounded transition-colors">
+          <button onClick={save} className="px-4 py-1.5 text-xs bg-blue-700 hover:bg-blue-600 text-white rounded transition-colors cursor-pointer">
             Save
           </button>
         </div>

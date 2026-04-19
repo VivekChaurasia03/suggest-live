@@ -21,6 +21,8 @@ interface AppState {
   setSuggestionPrompt: (p: string) => void;
   sessionStartTime: Date | null;
   setSessionStartTime: (d: Date | null) => void;
+  isFetchingSuggestions: boolean;
+  setIsFetchingSuggestions: (v: boolean) => void;
 }
 
 const DEFAULT_SUGGESTION_PROMPT = `You are a live meeting copilot. Read the recent transcript below and surface 3 suggestions that are immediately useful to the person receiving them.
@@ -47,6 +49,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [contextWindowSeconds, setContextWindowSeconds] = useState(90);
   const [suggestionPrompt, setSuggestionPrompt] = useState(DEFAULT_SUGGESTION_PROMPT);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
 
   const addTranscriptChunk = useCallback((chunk: TranscriptChunk) => {
     setTranscript(prev => [...prev, chunk]);
@@ -82,6 +85,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       contextWindowSeconds, setContextWindowSeconds,
       suggestionPrompt, setSuggestionPrompt,
       sessionStartTime, setSessionStartTime,
+      isFetchingSuggestions, setIsFetchingSuggestions,
     }}>
       {children}
     </AppContext.Provider>

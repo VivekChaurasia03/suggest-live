@@ -9,7 +9,10 @@ const INTENT_SIGNALS = [
   "can you explain", "what do you mean", "i'm confused", "not sure about",
 ];
 
-export function useTranscription(onIntentDetected: () => void) {
+export function useTranscription(
+  onIntentDetected: () => void,
+  onTranscriptAdded: (text: string) => void,
+) {
   const { apiKey, addTranscriptChunk } = useApp();
 
   const handleChunk = useCallback(async (blob: Blob) => {
@@ -29,6 +32,9 @@ export function useTranscription(onIntentDetected: () => void) {
         text: result.text.trim(),
       });
 
+      // Pass text directly so useSuggestions doesn't depend on React re-render timing
+      onTranscriptAdded(result.text.trim());
+
       const lower = result.text.toLowerCase();
       const matched = INTENT_SIGNALS.find(signal => lower.includes(signal));
       if (matched) {
@@ -38,7 +44,7 @@ export function useTranscription(onIntentDetected: () => void) {
     } catch (err) {
       log.error('Transcription failed:', err);
     }
-  }, [apiKey, addTranscriptChunk, onIntentDetected]);
+  }, [apiKey, addTranscriptChunk, onIntentDetected, onTranscriptAdded]);
 
   const { start, stop, flush } = useAudioCapture(handleChunk);
   return { start, stop, flush };

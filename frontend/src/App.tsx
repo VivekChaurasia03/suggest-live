@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { log } from './services/logger';
 import { AppProvider, useApp } from './context/AppContext';
 import { TranscriptPanel } from './components/TranscriptPanel';
@@ -6,18 +6,61 @@ import { SuggestionsPanel } from './components/SuggestionsPanel';
 import { ChatPanel } from './components/ChatPanel';
 import { SettingsModal } from './components/SettingsModal';
 import { useTranscription } from './hooks/useTranscription';
+import { useSuggestions } from './hooks/useSuggestions';
+import { useChat } from './hooks/useChat';
 import type { Suggestion } from './types';
 
 function AppShell() {
-  const { apiKey, isRecording, setIsRecording, setSessionStartTime, addChatMessage } = useApp();
+  const { apiKey, isRecording, setIsRecording, setSessionStartTime } = useApp();
+  const { sendMessage } = useChat();
   const [showSettings, setShowSettings] = useState(!apiKey);
   const [nextRefreshIn, setNextRefreshIn] = useState(30);
   const [isStarting, setIsStarting] = useState(false);
 
-  const { start: startTranscription, stop: stopTranscription, flush: flushChunk } = useTranscription(() => {
-    // intent detected — will trigger early suggestion refresh in Phase 3
-    console.log('Intent signal detected — early suggestion refresh');
-  });
+  // Resizable panels
+  const [widths, setWidths] = useState([33.33, 33.33, 33.34]);
+  const mainRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ handle: 0 | 1; startX: number; startWidths: number[] } | null>(null);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragRef.current || !mainRef.current) return;
+      const { handle, startX, startWidths } = dragRef.current;
+      const containerW = mainRef.current.getBoundingClientRect().width;
+      const pct = (e.clientX - startX) / containerW * 100;
+      const MIN = 15;
+      const next = [...startWidths];
+      if (handle === 0) {
+        next[0] = Math.min(70, Math.max(MIN, startWidths[0] + pct));
+        next[1] = Math.min(70, Math.max(MIN, startWidths[1] - pct));
+      } else {
+        next[1] = Math.min(70, Math.max(MIN, startWidths[1] + pct));
+        next[2] = Math.min(70, Math.max(MIN, startWidths[2] - pct));
+      }
+      setWidths(next);
+    };
+    const onUp = () => {
+      dragRef.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, []);
+
+  const startDrag = (handle: 0 | 1) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    dragRef.current = { handle, startX: e.clientX, startWidths: [...widths] };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  const { run: runSuggestions, fetchNow: fetchSuggestions, forceNext: forceNextSuggestion } = useSuggestions();
+  const { start: startTranscription, stop: stopTranscription, flush: flushChunk } = useTranscription(
+    () => { log.suggest('intent signal → early suggestion refresh'); fetchSuggestions(); },
+    (text) => runSuggestions(text),   // passes text directly — avoids stale ref on first chunk
+  );
 
   const toggleRecording = async () => {
     if (!apiKey) { setShowSettings(true); return; }
@@ -37,6 +80,7 @@ function AppShell() {
       }
     } else {
       log.audio('[toggleRecording] → STOP (isRecording was true)');
+      forceNextSuggestion(); // final chunk's Whisper response should always produce suggestions
       stopTranscription();
       setIsRecording(false);
       setSessionStartTime(null);
@@ -54,7 +98,7 @@ function AppShell() {
   }, [isRecording]);
 
   const handleSuggestionClick = (suggestion: Suggestion) => {
-    addChatMessage({ id: crypto.randomUUID(), role: 'user', content: suggestion.text });
+    sendMessage(suggestion.text);
   };
 
   return (
@@ -67,7 +111,7 @@ function AppShell() {
           {isRecording && (
             <button
               onClick={flushChunk}
-              className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 border border-gray-700 rounded transition-colors"
+              className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 border border-gray-700 rounded transition-colors cursor-pointer"
             >
               ↻ Flush now
             </button>
@@ -75,7 +119,7 @@ function AppShell() {
           <button
             onClick={toggleRecording}
             disabled={isStarting}
-            className={`px-4 py-1.5 text-xs font-semibold rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`px-4 py-1.5 text-xs font-semibold rounded transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
               isRecording
                 ? 'bg-red-600 hover:bg-red-700 text-white'
                 : 'bg-green-700 hover:bg-green-600 text-white'
@@ -85,21 +129,35 @@ function AppShell() {
           </button>
           <button
             onClick={() => setShowSettings(true)}
-            className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 border border-gray-700 rounded transition-colors"
+            className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 border border-gray-700 rounded transition-colors cursor-pointer"
           >
             ⚙ Settings
           </button>
         </div>
       </header>
 
-      <main className="flex flex-1 overflow-hidden divide-x divide-gray-800">
-        <TranscriptPanel />
-        <SuggestionsPanel
-          onSuggestionClick={handleSuggestionClick}
-          onReload={() => {}}
-          nextRefreshIn={nextRefreshIn}
+      <main ref={mainRef} className="flex flex-1 overflow-hidden">
+        <div style={{ width: `${widths[0]}%` }} className="flex flex-col min-w-0 overflow-hidden border-r border-gray-800">
+          <TranscriptPanel />
+        </div>
+        <div
+          className="w-1 shrink-0 bg-gray-800 hover:bg-blue-500 active:bg-blue-400 cursor-col-resize transition-colors"
+          onMouseDown={startDrag(0)}
         />
-        <ChatPanel onSend={(text) => addChatMessage({ id: crypto.randomUUID(), role: 'user', content: text })} />
+        <div style={{ width: `${widths[1]}%` }} className="flex flex-col min-w-0 overflow-hidden border-r border-gray-800">
+          <SuggestionsPanel
+            onSuggestionClick={handleSuggestionClick}
+            onReload={fetchSuggestions}
+            nextRefreshIn={nextRefreshIn}
+          />
+        </div>
+        <div
+          className="w-1 shrink-0 bg-gray-800 hover:bg-blue-500 active:bg-blue-400 cursor-col-resize transition-colors"
+          onMouseDown={startDrag(1)}
+        />
+        <div style={{ width: `${widths[2]}%` }} className="flex flex-col min-w-0 overflow-hidden">
+          <ChatPanel onSend={sendMessage} />
+        </div>
       </main>
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
