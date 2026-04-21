@@ -130,7 +130,7 @@ function AppShell() {
               ↻ Flush now
             </button>
           )}
-          {(transcript.length > 0 || suggestionBatches.length > 0) && (
+          {(transcript.length > 0 || suggestionBatches.length > 0 || chatMessages.length > 0) && (
             <button
               onClick={() => exportSession(transcript, suggestionBatches, chatMessages)}
               className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 border border-gray-700 rounded transition-colors cursor-pointer"
