@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useApp } from '../context/AppContext';
-import { transcribeAudio } from '../services/groq';
+import { transcribeAudio, parseGroqError } from '../services/groq';
 import { useAudioCapture } from './useAudioCapture';
 import { log } from '../services/logger';
 
@@ -9,11 +9,19 @@ const INTENT_SIGNALS = [
   "can you explain", "what do you mean", "i'm confused", "not sure about",
 ];
 
+// Whisper hallucinates these phrases on near-silent audio — discard them
+const WHISPER_HALLUCINATIONS = new Set([
+  'thank you.', 'thank you', 'thanks for watching.', 'thanks for watching',
+  'you', 'you.', 'bye.', 'bye', 'goodbye.', 'goodbye',
+  'thanks.', 'thanks', 'okay.', 'okay', 'ok.', 'ok',
+  'um.', 'uh.', 'hmm.', 'mm-hmm.',
+]);
+
 export function useTranscription(
   onIntentDetected: () => void,
   onTranscriptAdded: (text: string) => void,
 ) {
-  const { apiKey, addTranscriptChunk } = useApp();
+  const { apiKey, addTranscriptChunk, setAppError } = useApp();
 
   const handleChunk = useCallback(async (blob: Blob) => {
     if (!apiKey) return;
@@ -21,21 +29,30 @@ export function useTranscription(
     try {
       const result = await transcribeAudio(apiKey, blob);
       log.transcribe(`Whisper response: "${result.text.trim()}" (${result.segments.length} segments)`);
-      if (!result.text.trim()) {
+      const text = result.text.trim();
+      if (!text) {
         log.transcribe('empty transcription — skipping');
+        return;
+      }
+      if (WHISPER_HALLUCINATIONS.has(text.toLowerCase())) {
+        log.transcribe(`hallucination detected ("${text}") — skipping`);
+        return;
+      }
+      if (text.split(/\s+/).length < 3) {
+        log.transcribe(`transcription too short ("${text}") — likely noise, skipping`);
         return;
       }
 
       addTranscriptChunk({
         id: crypto.randomUUID(),
         timestamp: new Date(),
-        text: result.text.trim(),
+        text,
       });
 
       // Pass text directly so useSuggestions doesn't depend on React re-render timing
-      onTranscriptAdded(result.text.trim());
+      onTranscriptAdded(text);
 
-      const lower = result.text.toLowerCase();
+      const lower = text.toLowerCase();
       const matched = INTENT_SIGNALS.find(signal => lower.includes(signal));
       if (matched) {
         log.transcribe(`intent signal detected: "${matched}" — triggering early refresh`);
@@ -43,6 +60,7 @@ export function useTranscription(
       }
     } catch (err) {
       log.error('Transcription failed:', err);
+      setAppError(parseGroqError(err));
     }
   }, [apiKey, addTranscriptChunk, onIntentDetected, onTranscriptAdded]);
 

@@ -1,10 +1,10 @@
 import { useCallback, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { streamChatResponse } from '../services/groq';
+import { streamChatResponse, parseGroqError } from '../services/groq';
 import { log } from '../services/logger';
 
 export function useChat() {
-  const { apiKey, transcript, chatMessages, addChatMessage, updateLastAssistantMessage } = useApp();
+  const { apiKey, transcript, chatMessages, addChatMessage, updateLastAssistantMessage, setAppError } = useApp();
 
   const transcriptRef = useRef(transcript);
   transcriptRef.current = transcript;
@@ -50,7 +50,9 @@ export function useChat() {
       );
     } catch (err) {
       log.error('streamChatResponse failed:', err);
-      updateLastAssistantMessage('Sorry, something went wrong. Please try again.', true);
+      const msg = parseGroqError(err);
+      setAppError(msg);
+      updateLastAssistantMessage(msg, true);
     } finally {
       isStreamingRef.current = false;
     }

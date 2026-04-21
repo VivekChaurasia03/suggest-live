@@ -1,6 +1,19 @@
 import Groq from 'groq-sdk';
 import type { Suggestion, ConversationPhase } from '../types';
 
+export function parseGroqError(err: unknown): string {
+  if (err && typeof err === 'object' && 'status' in err) {
+    const status = (err as { status: number }).status;
+    if (status === 401) return 'Invalid API key. Open Settings and check your Groq API key.';
+    if (status === 429) return 'Rate limit hit. Groq is throttling requests — wait a moment and try again.';
+    if (status === 503 || status === 502) return 'Groq is temporarily unavailable. Try again in a few seconds.';
+  }
+  if (err instanceof Error && err.message.toLowerCase().includes('network')) {
+    return 'Network error. Check your internet connection.';
+  }
+  return 'Something went wrong. Check the console for details.';
+}
+
 const SUGGESTION_MODEL = 'openai/gpt-oss-120b'; // GPT-OSS 120B as specified in assignment
 const VALID_TYPES = ['FACT-CHECK', 'TALKING POINT', 'QUESTION TO ASK', 'ACTION ITEM'] as const;
 
@@ -46,7 +59,7 @@ const PHASE_HINTS: Record<ConversationPhase, string> = {
   closing: 'This is the closing phase. ACTION ITEM suggestions are appropriate — commitments and next steps are being discussed.',
 };
 
-const CHAT_SYSTEM_PROMPT = `You are a real-time meeting copilot. You have access to the full conversation transcript below. Answer the user's question thoroughly and specifically based on what was discussed — be direct, concrete, and actionable. Do not hedge unnecessarily.`;
+const CHAT_SYSTEM_PROMPT = `You are a real-time meeting copilot. You have access to the full conversation transcript below. Answer the user's question thoroughly and specifically based on what was discussed — be direct, concrete, and actionable. Do not hedge unnecessarily. Never use LaTeX math notation — express any formulas or calculations in plain text (e.g. "ROI = (Savings - Cost) / Cost × 100%").`;
 
 export async function streamChatResponse(
   apiKey: string,

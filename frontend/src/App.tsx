@@ -9,9 +9,10 @@ import { useTranscription } from './hooks/useTranscription';
 import { useSuggestions } from './hooks/useSuggestions';
 import { useChat } from './hooks/useChat';
 import type { Suggestion } from './types';
+import { exportSession } from './services/export';
 
 function AppShell() {
-  const { apiKey, isRecording, setIsRecording, setSessionStartTime } = useApp();
+  const { apiKey, isRecording, setIsRecording, setSessionStartTime, conversationPhase, appError, setAppError, transcript, suggestionBatches, chatMessages } = useApp();
   const { sendMessage } = useChat();
   const [showSettings, setShowSettings] = useState(!apiKey);
   const [nextRefreshIn, setNextRefreshIn] = useState(30);
@@ -74,7 +75,7 @@ function AppShell() {
         log.audio('[toggleRecording] → recording active, state set');
       } catch (err) {
         log.error('[toggleRecording] start failed:', err);
-        alert('Microphone access denied. Please allow mic access and try again.');
+        setAppError('Microphone access denied. Please allow mic access in your browser settings.');
       } finally {
         setIsStarting(false);
       }
@@ -104,9 +105,22 @@ function AppShell() {
   return (
     <div className="flex flex-col h-screen bg-gray-950 text-gray-100 font-mono">
       <header className="flex items-center justify-between px-6 py-3 border-b border-gray-800 shrink-0">
-        <h1 className="text-sm font-semibold tracking-wide text-gray-200">
-          TwinMind — Live Suggestions
-        </h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-sm font-semibold tracking-wide text-gray-200">
+            TwinMind — Live Suggestions
+          </h1>
+          {isRecording && (
+            <span className={`px-2 py-0.5 text-[10px] font-bold tracking-wider rounded border ${
+              conversationPhase === 'opening'
+                ? 'bg-blue-900/40 text-blue-300 border-blue-700'
+                : conversationPhase === 'middle'
+                ? 'bg-violet-900/40 text-violet-300 border-violet-700'
+                : 'bg-emerald-900/40 text-emerald-300 border-emerald-700'
+            }`}>
+              {conversationPhase.toUpperCase()}
+            </span>
+          )}
+        </div>
         <div className="flex gap-3">
           {isRecording && (
             <button
@@ -114,6 +128,14 @@ function AppShell() {
               className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 border border-gray-700 rounded transition-colors cursor-pointer"
             >
               ↻ Flush now
+            </button>
+          )}
+          {(transcript.length > 0 || suggestionBatches.length > 0) && (
+            <button
+              onClick={() => exportSession(transcript, suggestionBatches, chatMessages)}
+              className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 border border-gray-700 rounded transition-colors cursor-pointer"
+            >
+              ↓ Export
             </button>
           )}
           <button
@@ -135,6 +157,18 @@ function AppShell() {
           </button>
         </div>
       </header>
+
+      {appError && (
+        <div className="flex items-center justify-between px-6 py-2 bg-red-900/60 border-b border-red-700 shrink-0">
+          <span className="text-xs text-red-200">{appError}</span>
+          <button
+            onClick={() => setAppError(null)}
+            className="text-xs text-red-400 hover:text-red-200 ml-4 cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <main ref={mainRef} className="flex flex-1 overflow-hidden">
         <div style={{ width: `${widths[0]}%` }} className="flex flex-col min-w-0 overflow-hidden border-r border-gray-800">

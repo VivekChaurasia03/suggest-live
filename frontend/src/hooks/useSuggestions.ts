@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { fetchSuggestions } from '../services/groq';
+import { fetchSuggestions, parseGroqError } from '../services/groq';
 import { log } from '../services/logger';
 import type { ConversationPhase } from '../types';
 
@@ -18,7 +18,7 @@ export function useSuggestions() {
   const {
     apiKey, transcript, contextWindowSeconds, suggestionPrompt,
     sessionStartTime, setConversationPhase,
-    addSuggestionBatch, setIsFetchingSuggestions,
+    addSuggestionBatch, setIsFetchingSuggestions, setAppError,
   } = useApp();
 
   const transcriptRef = useRef(transcript);
@@ -81,6 +81,7 @@ export function useSuggestions() {
       });
     } catch (err) {
       log.error('fetchSuggestions failed:', err);
+      setAppError(parseGroqError(err));
       lastRunRef.current = 0;
     } finally {
       isRunningRef.current = false;
@@ -91,7 +92,7 @@ export function useSuggestions() {
         run(queued ?? undefined, true);
       }
     }
-  }, [apiKey, contextWindowSeconds, suggestionPrompt, sessionStartTime, setConversationPhase, addSuggestionBatch, setIsFetchingSuggestions]);
+  }, [apiKey, contextWindowSeconds, suggestionPrompt, sessionStartTime, setConversationPhase, addSuggestionBatch, setIsFetchingSuggestions, setAppError]);
 
   const fetchNow = useCallback(() => run(undefined, true), [run]);
   // Call before stopTranscription() so the final chunk's Whisper response bypasses cooldown

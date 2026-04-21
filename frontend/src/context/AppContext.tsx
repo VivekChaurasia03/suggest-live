@@ -4,6 +4,8 @@ import type { TranscriptChunk, SuggestionBatch, ChatMessage, ConversationPhase }
 interface AppState {
   apiKey: string;
   setApiKey: (key: string) => void;
+  appError: string | null;
+  setAppError: (msg: string | null) => void;
   isRecording: boolean;
   setIsRecording: (v: boolean) => void;
   transcript: TranscriptChunk[];
@@ -41,6 +43,7 @@ const AppContext = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [apiKey, setApiKey] = useState('');
+  const [appError, setAppError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptChunk[]>([]);
   const [suggestionBatches, setSuggestionBatches] = useState<SuggestionBatch[]>([]);
@@ -77,6 +80,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       apiKey, setApiKey,
+      appError, setAppError,
       isRecording, setIsRecording,
       transcript, addTranscriptChunk,
       suggestionBatches, addSuggestionBatch,
