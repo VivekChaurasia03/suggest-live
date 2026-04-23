@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { transcribeAudio, parseGroqError } from '../services/groq';
 import { useAudioCapture } from './useAudioCapture';
+import { hasVoiceActivity } from '../services/vad';
 import { log } from '../services/logger';
 
 const INTENT_SIGNALS = [
@@ -32,7 +33,15 @@ export function useTranscription(
 
   const handleChunk = useCallback(async (blob: Blob) => {
     if (!apiKey) return;
-    log.transcribe(`sending chunk to Whisper — ${(blob.size / 1024).toFixed(1)}KB`);
+    log.transcribe(`chunk received — ${(blob.size / 1024).toFixed(1)}KB`);
+
+    const hasVoice = await hasVoiceActivity(blob);
+    if (!hasVoice) {
+      log.transcribe('VAD: no voice activity detected — skipping Whisper call');
+      return;
+    }
+    log.transcribe('VAD: voice activity confirmed — sending to Whisper');
+
     try {
       const result = await transcribeAudio(apiKey, blob);
       log.transcribe(`Whisper response: "${result.text.trim()}" (${result.segments.length} segments)`);
