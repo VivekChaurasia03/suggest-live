@@ -98,13 +98,18 @@ export async function fetchSuggestions(
   rollingTranscript: string,
   systemPrompt: string,
   phase: ConversationPhase,
+  clickedTypes: string[] = [],
 ): Promise<Suggestion[]> {
   const groq = getGroqClient(apiKey);
+
+  const feedbackHint = clickedTypes.length > 0
+    ? `\n\nThe user found these suggestion types useful earlier in this session: [${clickedTypes.join(', ')}]. If the transcript supports it, slightly favor these types — but never force a type that doesn't fit the content.`
+    : '';
 
   const response = await groq.chat.completions.create({
     model: SUGGESTION_MODEL,
     messages: [
-      { role: 'system', content: `${systemPrompt}\n\n${PHASE_HINTS[phase]}` },
+      { role: 'system', content: `${systemPrompt}\n\n${PHASE_HINTS[phase]}${feedbackHint}` },
       { role: 'user', content: `Recent transcript:\n${rollingTranscript}` },
     ],
     response_format: { type: 'json_object' },

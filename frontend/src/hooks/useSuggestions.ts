@@ -19,10 +19,14 @@ export function useSuggestions() {
     apiKey, transcript, contextWindowSeconds, suggestionPrompt,
     sessionStartTime, setConversationPhase,
     addSuggestionBatch, setIsFetchingSuggestions, setAppError,
+    clickedSuggestionTypes,
   } = useApp();
 
   const transcriptRef = useRef(transcript);
   transcriptRef.current = transcript;
+
+  const clickedTypesRef = useRef(clickedSuggestionTypes);
+  clickedTypesRef.current = clickedSuggestionTypes;
 
   const lastRunRef = useRef<number>(0);
   const isRunningRef = useRef(false);
@@ -72,7 +76,7 @@ export function useSuggestions() {
     setIsFetchingSuggestions(true);
 
     try {
-      const suggestions = await fetchSuggestions(apiKey, rollingText, suggestionPrompt, phase);
+      const suggestions = await fetchSuggestions(apiKey, rollingText, suggestionPrompt, phase, clickedTypesRef.current);
       log.suggest(`got ${suggestions.length} suggestions`, suggestions);
       addSuggestionBatch({
         id: crypto.randomUUID(),
@@ -92,7 +96,7 @@ export function useSuggestions() {
         run(queued ?? undefined, true);
       }
     }
-  }, [apiKey, contextWindowSeconds, suggestionPrompt, sessionStartTime, setConversationPhase, addSuggestionBatch, setIsFetchingSuggestions, setAppError]);
+  }, [apiKey, contextWindowSeconds, suggestionPrompt, sessionStartTime, setConversationPhase, addSuggestionBatch, setIsFetchingSuggestions, setAppError, clickedSuggestionTypes]);
 
   const fetchNow = useCallback(() => run(undefined, true), [run]);
   // Call before stopTranscription() so the final chunk's Whisper response bypasses cooldown

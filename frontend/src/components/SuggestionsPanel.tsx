@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Suggestion, SuggestionBatch } from '../types';
 
@@ -8,12 +9,15 @@ const TYPE_STYLES: Record<string, string> = {
   'ACTION ITEM':     'bg-emerald-900/50 text-emerald-300 border border-emerald-700',
 };
 
-function SuggestionCard({ suggestion, onClick }: { suggestion: Suggestion; onClick: () => void }) {
+function SuggestionCard({ suggestion, onClick, isClicked }: { suggestion: Suggestion; onClick: () => void; isClicked: boolean }) {
   return (
     <button
       onClick={onClick}
-      className="w-full text-left p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors border border-gray-700 hover:border-gray-500 space-y-1.5 cursor-pointer"
+      className={`w-full text-left p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors border border-gray-700 hover:border-gray-500 space-y-1.5 cursor-pointer relative ${isClicked ? 'border-l-2 border-l-teal-500' : ''}`}
     >
+      {isClicked && (
+        <span className="absolute top-2 right-2 text-teal-400 text-[10px] leading-none">✓</span>
+      )}
       <span className={`inline-block px-2 py-0.5 text-[10px] font-bold rounded tracking-wider ${TYPE_STYLES[suggestion.type] ?? 'bg-gray-700 text-gray-300'}`}>
         {suggestion.type}
       </span>
@@ -22,16 +26,22 @@ function SuggestionCard({ suggestion, onClick }: { suggestion: Suggestion; onCli
   );
 }
 
-function BatchGroup({ batch, age, onSuggestionClick }: {
+function BatchGroup({ batch, age, onSuggestionClick, clickedSet }: {
   batch: SuggestionBatch;
   age: number;
   onSuggestionClick: (s: Suggestion) => void;
+  clickedSet: Set<string>;
 }) {
   const opacity = age === 0 ? 'opacity-100' : age === 1 ? 'opacity-50' : 'opacity-20';
   return (
     <div className={`space-y-2 transition-opacity ${opacity}`}>
       {batch.suggestions.map((s, i) => (
-        <SuggestionCard key={i} suggestion={s} onClick={() => onSuggestionClick(s)} />
+        <SuggestionCard
+          key={i}
+          suggestion={s}
+          onClick={() => onSuggestionClick(s)}
+          isClicked={clickedSet.has(s.text)}
+        />
       ))}
       <p className="text-center text-[10px] text-gray-600 py-1">
         — batch · {batch.timestamp.toLocaleTimeString()} —
@@ -45,8 +55,15 @@ export function SuggestionsPanel({ onSuggestionClick, onReload, nextRefreshIn }:
   onReload: () => void;
   nextRefreshIn: number;
 }) {
-  const { suggestionBatches, isFetchingSuggestions } = useApp();
+  const { suggestionBatches, isFetchingSuggestions, addClickedType } = useApp();
+  const [clickedSet, setClickedSet] = useState<Set<string>>(new Set());
   const recent = [...suggestionBatches].reverse().slice(0, 3);
+
+  const handleSuggestionClick = (s: Suggestion) => {
+    setClickedSet(prev => new Set(prev).add(s.text));
+    addClickedType(s.type);
+    onSuggestionClick(s);
+  };
 
   return (
     <div className="flex flex-col flex-1 min-w-0 min-h-0">
@@ -73,7 +90,7 @@ export function SuggestionsPanel({ onSuggestionClick, onReload, nextRefreshIn }:
           <p className="text-xs text-gray-600 mt-4">Suggestions appear every 30s once recording starts.</p>
         ) : (
           recent.map((batch, age) => (
-            <BatchGroup key={batch.id} batch={batch} age={age} onSuggestionClick={onSuggestionClick} />
+            <BatchGroup key={batch.id} batch={batch} age={age} onSuggestionClick={handleSuggestionClick} clickedSet={clickedSet} />
           ))
         )}
       </div>
