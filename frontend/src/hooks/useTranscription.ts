@@ -28,6 +28,7 @@ const WHISPER_HALLUCINATIONS = new Set([
 export function useTranscription(
   onIntentDetected: () => void,
   onTranscriptAdded: (text: string) => void,
+  onRecordingError?: () => void,
 ) {
   const { apiKey, addTranscriptChunk, setAppError } = useApp();
 
@@ -80,6 +81,12 @@ export function useTranscription(
     }
   }, [apiKey, addTranscriptChunk, onIntentDetected, onTranscriptAdded]);
 
-  const { start, stop, flush } = useAudioCapture(handleChunk);
+  const handleRecordingError = useCallback((err: unknown) => {
+    log.error('MediaRecorder crashed mid-session:', err);
+    setAppError('Recording stopped unexpectedly. Please restart to continue.');
+    onRecordingError?.();
+  }, [setAppError, onRecordingError]);
+
+  const { start, stop, flush } = useAudioCapture(handleChunk, handleRecordingError);
   return { start, stop, flush };
 }

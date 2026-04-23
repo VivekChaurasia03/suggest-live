@@ -61,6 +61,7 @@ function AppShell() {
   const { start: startTranscription, stop: stopTranscription, flush: flushChunk } = useTranscription(
     () => { log.suggest('intent signal → early suggestion refresh'); fetchSuggestions(); },
     (text) => runSuggestions(text),   // passes text directly — avoids stale ref on first chunk
+    () => { setIsRecording(false); setSessionStartTime(null); },
   );
 
   const toggleRecording = async () => {

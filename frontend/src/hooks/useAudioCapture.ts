@@ -32,12 +32,14 @@ function recordOneChunk(stream: MediaStream, mimeType: string, recorderRef: Reac
   });
 }
 
-export function useAudioCapture(onChunk: (blob: Blob) => void) {
+export function useAudioCapture(onChunk: (blob: Blob) => void, onError?: (err: unknown) => void) {
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
-  // Keep callback in a ref so the loop closure never goes stale
+  // Keep callbacks in refs so the loop closure never goes stale
   const onChunkRef = useRef(onChunk);
   onChunkRef.current = onChunk;
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
 
   const flush = useCallback(() => {
     if (recorderRef.current?.state === 'recording') {
@@ -91,6 +93,7 @@ export function useAudioCapture(onChunk: (blob: Blob) => void) {
         } catch (err) {
           clearTimeout(timer);
           log.error('chunk recording error:', err);
+          onErrorRef.current?.(err);
           break;
         }
       }
