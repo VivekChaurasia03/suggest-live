@@ -5,8 +5,15 @@ import { useAudioCapture } from './useAudioCapture';
 import { log } from '../services/logger';
 
 const INTENT_SIGNALS = [
-  "i don't know", "i'm not sure", "what was the", "could you clarify",
-  "can you explain", "what do you mean", "i'm confused", "not sure about",
+  // hedging / uncertainty
+  "i don't know", "i'm not sure", "i'm confused", "not sure about",
+  // clarification requests — likely during a live demo
+  "could you clarify", "can you explain", "what do you mean",
+  "can you walk me through", "help me understand", "can you elaborate",
+  "what exactly do you mean", "what's the reasoning", "how does that work",
+  "what's the difference", "could you give an example", "i'm not following",
+  // topic shifts that benefit from fresh suggestions
+  "what was the", "so you're saying", "just to confirm",
 ];
 
 // Whisper hallucinates these phrases on near-silent audio — discard them

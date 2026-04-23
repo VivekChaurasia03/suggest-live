@@ -88,7 +88,7 @@ function AppShell() {
     }
   };
 
-  // countdown timer display
+  // countdown timer display — resets whenever a new batch lands (intent trigger, manual reload, or scheduled)
   useEffect(() => {
     if (!isRecording) { setNextRefreshIn(30); return; }
     setNextRefreshIn(30);
@@ -96,7 +96,7 @@ function AppShell() {
       setNextRefreshIn(prev => (prev <= 1 ? 30 : prev - 1));
     }, 1000);
     return () => clearInterval(tick);
-  }, [isRecording]);
+  }, [isRecording, suggestionBatches.length]);
 
   const handleSuggestionClick = (suggestion: Suggestion) => {
     sendMessage(suggestion.text);
@@ -110,13 +110,16 @@ function AppShell() {
             TwinMind — Live Suggestions
           </h1>
           {isRecording && (
-            <span className={`px-2 py-0.5 text-[10px] font-bold tracking-wider rounded border ${
-              conversationPhase === 'opening'
-                ? 'bg-blue-900/40 text-blue-300 border-blue-700'
-                : conversationPhase === 'middle'
-                ? 'bg-violet-900/40 text-violet-300 border-violet-700'
-                : 'bg-emerald-900/40 text-emerald-300 border-emerald-700'
-            }`}>
+            <span
+              key={conversationPhase}
+              className={`px-2 py-0.5 text-[10px] font-bold tracking-wider rounded border transition-all duration-700 ${
+                conversationPhase === 'opening'
+                  ? 'bg-blue-900/40 text-blue-300 border-blue-700'
+                  : conversationPhase === 'middle'
+                  ? 'bg-violet-900/40 text-violet-300 border-violet-700'
+                  : 'bg-emerald-900/40 text-emerald-300 border-emerald-700'
+              }`}
+            >
               {conversationPhase.toUpperCase()}
             </span>
           )}

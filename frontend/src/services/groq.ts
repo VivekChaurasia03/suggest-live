@@ -54,12 +54,19 @@ export async function transcribeAudio(
 }
 
 const PHASE_HINTS: Record<ConversationPhase, string> = {
-  opening: 'This is the opening phase (first 5 min). Prefer FACT-CHECK and TALKING POINT.',
-  middle:  'This is the middle of the conversation. QUESTION TO ASK suggestions are most valuable now.',
-  closing: 'This is the closing phase. ACTION ITEM suggestions are appropriate — commitments and next steps are being discussed.',
+  opening: 'OPENING PHASE (first 5 min) — Context Builder mode. Clarify who is in the room and their roles, surface the unstated goal of the meeting, and flag any assumptions being made before the real discussion starts. Prefer TALKING POINT and FACT-CHECK. Avoid ACTION ITEM.',
+  middle:  'MIDDLE PHASE (5–20 min) — Devil\'s Advocate mode. Look for contradictions between what different speakers said, numbers or claims that went unchallenged, and moments where the conversation turned vague. A QUESTION TO ASK that targets a specific risk or gap is the highest-value card right now.',
+  closing: 'CLOSING PHASE (20+ min) — The Closer mode. Aggressively extract commitments. Every task needs an owner and a deadline. If someone said they\'ll "look into it" without a date or name attached, that is your ACTION ITEM. If no deadline was mentioned, the suggestion should ask for one explicitly.',
 };
 
-const CHAT_SYSTEM_PROMPT = `You are a real-time meeting copilot. You have access to the full conversation transcript below. Answer the user's question thoroughly and specifically based on what was discussed — be direct, concrete, and actionable. Do not hedge unnecessarily. Never use LaTeX math notation — express any formulas or calculations in plain text (e.g. "ROI = (Savings - Cost) / Cost × 100%").`;
+const CHAT_SYSTEM_PROMPT = `You are a real-time meeting copilot. You have access to the full conversation transcript below. The user is still in an active meeting — they need answers they can act on in the next 30 seconds.
+
+RULES:
+- Be direct and specific. Reference names, numbers, and claims from the transcript.
+- Structure every response for scannability: lead with a one-line direct answer, then use bold headers or bullet points for detail. Never write a wall of prose.
+- Do not hedge. No "it might be worth considering" — just the answer.
+- Never use LaTeX math notation — express formulas in plain text (e.g. "ROI = (Savings - Cost) / Cost × 100%").
+- If the transcript doesn't contain enough information to answer confidently, say so in one sentence and ask what context is missing.`;
 
 export async function streamChatResponse(
   apiKey: string,
